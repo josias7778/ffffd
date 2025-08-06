@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registro por Voz - Individual</title>
+</head>
+<body>
+  <h1>Registro por Voz</h1>
+
+  <button onclick="startRecognition('linha')">🎤 Falar Linha</button>
+  <button onclick="startRecognition('codigo')">🎤 Falar Código da Peça</button>
+  <button onclick="startRecognition('tipo')">🎤 Falar Tipo da Peça</button>
+  <button onclick="startRecognition('local')">🎤 Falar Local de Instalação</button>
+  <button onclick="startRecognition('obs')">🎤 Falar Observação</button>
+  <br><br>
+  <button onclick="sendData()">📤 Enviar para Planilha</button>
+
+  <div id="status"></div>
+
+  <ul>
+    <li><strong>Linha:</strong> <span id="linha"></span></li>
+    <li><strong>Código da Peça:</strong> <span id="codigo"></span></li>
+    <li><strong>Tipo da Peça:</strong> <span id="tipo"></span></li>
+    <li><strong>Local de Instalação:</strong> <span id="local"></span></li>
+    <li><strong>Observação:</strong> <span id="obs"></span></li>
+  </ul>
+
+  <script>
+    let dados = {
+      linha: '',
+      codigo: '',
+      tipo: '',
+      local: '',
+      obs: ''
+    };
+
+    function startRecognition(campo) {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert('Use o Google Chrome no Android ou PC.');
+        return;
+      }
+
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      document.getElementById('status').innerText = `🎙️ Fale o campo: ${campo}`;
+
+      recognition.onresult = function (event) {
+        const texto = event.results[0][0].transcript.trim();
+        dados[campo] = texto;
+        document.getElementById(campo).innerText = texto;
+        document.getElementById('status').innerText = `✅ ${campo} registrado: ${texto}`;
+      };
+
+      recognition.onerror = function (event) {
+        document.getElementById('status').innerText = '❌ Erro: ' + event.error;
+      };
+
+      recognition.start();
+    }
+
+    function sendData() {
+      const { linha, codigo, tipo, local, obs } = dados;
+      if (!linha || !codigo || !tipo || !local) {
+        alert('Preencha todos os campos obrigatórios (linha, código, tipo, local).');
+        return;
+      }
+
+      const agora = new Date();
+      const payload = {
+        linha,
+        codigo,
+        tipo,
+        local,
+        obs,
+        data: agora.toLocaleDateString('pt-BR'),
+        hora: agora.toLocaleTimeString('pt-BR')
+      };
+
+      fetch('https://script.google.com/macros/s/AKfycbypDmhOMO9YWp1Z1cD5crM7XkSELLpXHDXnYjfIbX0G15KdoByN8vf4WhljDwZIGIwPcQ/exec', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(res => res.text())
+        .then(txt => {
+          document.getElementById('status').innerText = '✅ Dados enviados com sucesso!';
+          Object.keys(dados).forEach(k => {
+            dados[k] = '';
+            document.getElementById(k).innerText = '';
+          });
+        })
+        .catch(err => {
+          document.getElementById('status').innerText = '❌ Erro ao enviar: ' + err;
+        });
+    }
+  </script>
+</body>
+</html>
